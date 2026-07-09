@@ -1,21 +1,17 @@
 import React, { useState } from 'react';
-import { Radio, Sparkles, Workflow, Clock, Layers } from 'lucide-react';
+import { Radio, Sparkles, Workflow, Clock, Layers, ShieldCheck, Cpu, DollarSign, Terminal } from 'lucide-react';
 import { DeliverablesTab } from './components/DeliverablesTab';
 import { ScriptGeneratorTab } from './components/ScriptGeneratorTab';
 import { PipelineAutomationTab } from './components/PipelineAutomationTab';
 import { DaypartingMatrixTab } from './components/DaypartingMatrixTab';
 import { LivePlayerTab } from './components/LivePlayerTab';
-
-import React, { useState } from 'react';
-import { Radio, Sparkles, Workflow, Clock, Layers } from 'lucide-react';
-import { DeliverablesTab } from './components/DeliverablesTab';
-import { ScriptGeneratorTab } from './components/ScriptGeneratorTab';
-import { PipelineAutomationTab } from './components/PipelineAutomationTab';
-import { DaypartingMatrixTab } from './components/DaypartingMatrixTab';
-import { LivePlayerTab } from './components/LivePlayerTab';
+import { SvixWebhookTab } from './components/SvixWebhookTab';
+import { AdvancedArchitectureTab } from './components/AdvancedArchitectureTab';
+import { MonetizationImagingTab } from './components/MonetizationImagingTab';
+import { ProductionOrchestrationTab } from './components/ProductionOrchestrationTab';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'deliverables' | 'generator' | 'pipeline' | 'dayparting' | 'player'>('deliverables');
+  const [activeTab, setActiveTab] = useState<'deliverables' | 'generator' | 'pipeline' | 'dayparting' | 'player' | 'svix' | 'architecture' | 'monetization' | 'orchestrator'>('orchestrator');
 
   return (
     <div className="min-h-screen bg-[#0F0F0F] text-[#F4F4F4] font-sans antialiased flex flex-col">
@@ -28,6 +24,30 @@ export default function App() {
 
         {/* Navigation Tabs */}
         <nav className="hidden md:flex items-center space-x-1 bg-white/5 p-1 rounded-sm border border-white/10">
+          <button
+            onClick={() => setActiveTab('architecture')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-all ${
+              activeTab === 'architecture'
+                ? 'bg-red-600 text-black font-bold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span>Architecture</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('svix')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-all ${
+              activeTab === 'svix'
+                ? 'bg-red-600 text-black font-bold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Svix Webhooks</span>
+          </button>
+
           <button
             onClick={() => setActiveTab('deliverables')}
             className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-all ${
@@ -87,6 +107,30 @@ export default function App() {
             <Radio className="w-3.5 h-3.5" />
             <span>Player</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('monetization')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-all ${
+              activeTab === 'monetization'
+                ? 'bg-red-600 text-black font-bold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <DollarSign className="w-3.5 h-3.5" />
+            <span>Monetization & Ads</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('orchestrator')}
+            className={`flex items-center space-x-1.5 px-3 py-1.5 text-xs font-mono uppercase tracking-wider transition-all ${
+              activeTab === 'orchestrator'
+                ? 'bg-red-600 text-black font-bold'
+                : 'text-white/60 hover:text-white hover:bg-white/5'
+            }`}
+          >
+            <Terminal className="w-3.5 h-3.5" />
+            <span>Orchestrator Code</span>
+          </button>
         </nav>
 
         <div className="flex gap-6 text-[10px] uppercase tracking-widest text-white/50 hidden lg:flex font-mono">
@@ -97,6 +141,22 @@ export default function App() {
 
       {/* Mobile Tab Bar */}
       <div className="flex md:hidden overflow-x-auto bg-[#1A1A1A] p-2 border-b border-white/10 space-x-1">
+        <button
+          onClick={() => setActiveTab('architecture')}
+          className={`px-3 py-1.5 text-[10px] font-mono uppercase whitespace-nowrap ${
+            activeTab === 'architecture' ? 'bg-red-600 text-black font-bold' : 'text-white/60'
+          }`}
+        >
+          Architecture
+        </button>
+        <button
+          onClick={() => setActiveTab('svix')}
+          className={`px-3 py-1.5 text-[10px] font-mono uppercase whitespace-nowrap ${
+            activeTab === 'svix' ? 'bg-red-600 text-black font-bold' : 'text-white/60'
+          }`}
+        >
+          Svix
+        </button>
         <button
           onClick={() => setActiveTab('deliverables')}
           className={`px-3 py-1.5 text-[10px] font-mono uppercase whitespace-nowrap ${
@@ -137,15 +197,35 @@ export default function App() {
         >
           Player
         </button>
+        <button
+          onClick={() => setActiveTab('monetization')}
+          className={`px-3 py-1.5 text-[10px] font-mono uppercase whitespace-nowrap ${
+            activeTab === 'monetization' ? 'bg-red-600 text-black font-bold' : 'text-white/60'
+          }`}
+        >
+          Monetization
+        </button>
+        <button
+          onClick={() => setActiveTab('orchestrator')}
+          className={`px-3 py-1.5 text-[10px] font-mono uppercase whitespace-nowrap ${
+            activeTab === 'orchestrator' ? 'bg-red-600 text-black font-bold' : 'text-white/60'
+          }`}
+        >
+          Orchestrator
+        </button>
       </div>
 
       {/* Main Content Area */}
       <main className="flex-1 pb-16 overflow-y-auto">
+        {activeTab === 'architecture' && <AdvancedArchitectureTab />}
+        {activeTab === 'svix' && <SvixWebhookTab />}
         {activeTab === 'deliverables' && <DeliverablesTab />}
         {activeTab === 'generator' && <ScriptGeneratorTab />}
         {activeTab === 'pipeline' && <PipelineAutomationTab />}
         {activeTab === 'dayparting' && <DaypartingMatrixTab />}
         {activeTab === 'player' && <LivePlayerTab />}
+        {activeTab === 'monetization' && <MonetizationImagingTab />}
+        {activeTab === 'orchestrator' && <ProductionOrchestrationTab />}
       </main>
 
       {/* Footer */}
