@@ -1,0 +1,7 @@
+{
+  "name": "Autonomous AI Web Radio Station Engine",
+  "description": "Foundational automation and content engine for 24/7 autonomous AI web radio station with script generation, dayparting, and TTS integration.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
