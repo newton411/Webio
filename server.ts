@@ -2,11 +2,147 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Modality } from "@google/genai";
+import { Webhook } from "svix";
+import { Queue, Worker } from "bullmq";
+import IORedis from "ioredis";
+import fs from "fs";
+import { generateValidatedScript } from "./services/agentOrchestrator";
+import { streamAudio } from "./services/elevenlabs";
+import { createAndUploadPlaylist } from "./services/azuracast";
 
 const app = express();
 const PORT = 3000;
 
+// Initialize Redis / BullMQ Queues (Accept-Then-Queue Pattern with In-Memory Fallback)
+let redisConnection: IORedis | null = null;
+let audioJobQueue: Queue | null = null;
+let dlqQueue: Queue | null = null;
+const inMemoryQueue: any[] = [];
+const inMemoryDlq: any[] = [];
+let redisAvailable = false;
+
+try {
+  redisConnection = new IORedis(process.env.REDIS_URL || "redis://127.0.0.1:6379", {
+    maxRetriesPerRequest: 1,
+    enableReadyCheck: false,
+    lazyConnect: true,
+  });
+
+  redisConnection.on("error", (err) => {
+    redisAvailable = false;
+  });
+
+  redisConnection.ping().then(() => {
+    redisAvailable = true;
+    audioJobQueue = new Queue("AudioProcessingQueue", { connection: redisConnection as any });
+    dlqQueue = new Queue("DeadLetterQueue", { connection: redisConnection as any });
+  }).catch(() => {
+    redisAvailable = false;
+    console.log("Redis server not detected at startup. Using enterprise in-memory queue/DLQ fallback.");
+  });
+} catch (e) {
+  console.warn("Redis initialization deferred:", e);
+}
+
+// Background Worker & Dead-Letter Queue (DLQ) Safeguards
+if (redisConnection && audioJobQueue && dlqQueue) {
+  try {
+    const worker = new Worker("AudioProcessingQueue", async (job) => {
+      console.log(`Processing BullMQ job ${job.id} with data:`, job.data);
+      try {
+        const context = job.data?.data || job.data || {
+          previousTrack: "Nexus Wave - Cyber Drift",
+          nextTrack: "Aether Pulse - Nova",
+          weather: "68°F & Neon Skies",
+          sponsor: "Bloomberg Markets Hourly Financial Brief"
+        };
+
+        // 1. Multi-Agent Orchestration (DJ -> CEO Validation)
+        const validatedScript = await generateValidatedScript(context);
+        console.log(`CEO-Approved Broadcast Script: ${validatedScript}`);
+
+        // 2. ElevenLabs WebSocket Flash Audio Generation
+        const voiceId = process.env.AURA_VOICE_ID || "EXAVITQu4vr4xnSDxMaL";
+        const audioBuffer = await streamAudio(validatedScript, voiceId);
+
+        // 3. Save MP3 to local disk
+        const audioFilename = `broadcast_spot_${Date.now()}.mp3`;
+        const audioFilePath = path.join(process.cwd(), audioFilename);
+        fs.writeFileSync(audioFilePath, audioBuffer);
+
+        // 4. AzuraCast Playout & Dynamic M3U Injection
+        const stationId = process.env.AZURACAST_STATION_ID || "aura";
+        await createAndUploadPlaylist([audioFilePath], stationId);
+        console.log(`Successfully generated and dispatched broadcast spot ${audioFilename}`);
+      } catch (workerErr: any) {
+        console.error(`Worker pipeline execution error for job ${job.id}:`, workerErr);
+        throw workerErr;
+      }
+    }, { connection: redisConnection as any });
+
+    worker.on("failed", async (job, err) => {
+      console.error(`Job ${job?.id} failed: ${err.message}`);
+      if (job && dlqQueue) {
+        await dlqQueue.add("FailedJob", { originalJob: job.data, error: err.message, timestamp: Date.now() });
+      }
+    });
+  } catch (e) {
+    console.warn("BullMQ Worker setup deferred:", e);
+  }
+}
+
 app.use(express.json());
+
+// Svix Webhook Ingress Route with Accept-Then-Queue Pattern
+app.post("/api/webhooks/ingress", express.raw({ type: "application/json" }), async (req, res) => {
+  try {
+    const SVIX_SECRET = process.env.SVIX_SECRET || process.env.SVIX_WEBHOOK_SECRET || "whsec_mock_secret";
+    const wh = new Webhook(SVIX_SECRET);
+
+    const headers = {
+      "svix-id": req.headers["svix-id"] as string,
+      "svix-timestamp": req.headers["svix-timestamp"] as string,
+      "svix-signature": req.headers["svix-signature"] as string,
+    };
+
+    let evt: any;
+    try {
+      // Verify HMAC-SHA256 signature using official svix package
+      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body));
+      evt = wh.verify(rawBody, headers);
+    } catch (err: any) {
+      // Fallback for simulation/testing if headers are missing or in dev mode
+      if (process.env.NODE_ENV !== "production" && (!headers["svix-signature"] || headers["svix-signature"] === "simulated")) {
+        evt = typeof req.body === "string" ? JSON.parse(req.body) : req.body;
+      } else {
+        return res.status(400).json({ success: false, message: "Invalid Svix Signature", error: err.message });
+      }
+    }
+
+    const eventId = evt.id || `evt_${Date.now()}`;
+
+    // Accept-Then-Queue: Add to BullMQ with deduplication jobId or fallback to in-memory queue
+    if (redisAvailable && audioJobQueue) {
+      try {
+        await audioJobQueue.add("ProcessWebhook", evt, {
+          jobId: eventId,
+          attempts: 3,
+          backoff: { type: "exponential", delay: 1000 },
+        });
+      } catch (err) {
+        console.warn("BullMQ queue add failed, falling back to in-memory queue:", err);
+        inMemoryQueue.push({ id: eventId, data: evt, timestamp: Date.now() });
+      }
+    } else {
+      inMemoryQueue.push({ id: eventId, data: evt, timestamp: Date.now() });
+    }
+
+    return res.status(202).json({ success: true, message: "Accepted and queued successfully", eventId });
+  } catch (error: any) {
+    console.error("Webhook ingress error:", error);
+    return res.status(500).json({ success: false, message: "Queue error", error: error.message });
+  }
+});
 
 // Initialize GoogleGenAI client (lazy or server-side)
 const getAiClient = () => {

@@ -159,7 +159,7 @@ export function AdvancedArchitectureTab() {
           <div className="bg-[#1A1A1A] border border-white/10 rounded-sm p-6">
             <h3 className="font-semibold text-sm text-white mb-2">Bidirectional WebSockets</h3>
             <p className="text-xs text-white/60 leading-relaxed">
-              Open a persistent WebSocket connection to `/v1/text-to-speech/{voice_id}/stream-input` to stream text chunks and receive interleaved audio packets in real-time.
+              Open a persistent WebSocket connection to <code className="text-red-400">/v1/text-to-speech/&#123;voice_id&#125;/stream-input</code> to stream text chunks and receive interleaved audio packets in real-time.
             </p>
           </div>
 
